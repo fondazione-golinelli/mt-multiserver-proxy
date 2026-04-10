@@ -378,7 +378,7 @@ func (cc *ClientConn) process(pkt mt.Pkt) {
 	case *mt.ToSrvInit2:
 		var remotes []string
 		var err error
-		cc.denyPools, cc.itemDefs, cc.aliases, cc.nodeDefs, cc.p0Map, cc.p0SrvMap, cc.media, remotes, err = muxContent(cc.Name())
+		cc.denyPools, cc.itemDefs, cc.aliases, cc.nodeDefs, cc.globalNodeDefs, cc.p0Map, cc.p0SrvMap, cc.media, remotes, err = muxContent(cc.Name())
 		if err != nil {
 			cc.Log("<-", err.Error())
 			cc.Kick("Content multiplexing failed.")
@@ -702,6 +702,12 @@ func (sc *ServerConn) process(pkt mt.Pkt) {
 	case *mt.ToCltItemDefs:
 		return
 	case *mt.ToCltNodeDefs:
+		mapped, missing, missingNames := clt.setServerParam0Map(sc.name, sc.mediaPool, cmd.Defs)
+		if missing > 0 {
+			sc.Log("<-", fmt.Sprintf("built param0 map: %d mapped, %d missing", mapped, missing), strings.Join(missingNames, ", "))
+		} else {
+			sc.Log("<-", "built param0 map:", mapped, "defs")
+		}
 		return
 	case *mt.ToCltInv:
 		var oldInv mt.Inv

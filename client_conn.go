@@ -50,13 +50,14 @@ type ClientConn struct {
 	versionStr          string
 	formspecVer         uint16
 
-	denyPools map[string]struct{}
-	itemDefs  []mt.ItemDef
-	aliases   []struct{ Alias, Orig string }
-	nodeDefs  []mt.NodeDef
-	p0Map     param0Map
-	p0SrvMap  param0SrvMap
-	media     []mediaFile
+	denyPools      map[string]struct{}
+	itemDefs       []mt.ItemDef
+	aliases        []struct{ Alias, Orig string }
+	nodeDefs       []mt.NodeDef
+	globalNodeDefs map[string]mt.Content
+	p0Map          param0Map
+	p0SrvMap       param0SrvMap
+	media          []mediaFile
 
 	playerCAO, currentCAO mt.AOID
 

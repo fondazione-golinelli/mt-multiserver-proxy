@@ -357,6 +357,7 @@ type param0SrvMap map[mt.Content]struct {
 	name   string
 	param0 mt.Content
 }
+type globalNodeDefMap map[string]mt.Content
 
 func muxErrors(conns []*contentConn) map[string]struct{} {
 	denyPools := make(map[string]struct{})
@@ -420,9 +421,10 @@ func muxItemDefs(conns []*contentConn) ([]mt.ItemDef, []struct{ Alias, Orig stri
 	return itemDefs, aliases
 }
 
-func muxNodeDefs(conns []*contentConn) (nodeDefs []mt.NodeDef, p0Map param0Map, p0SrvMap param0SrvMap) {
+func muxNodeDefs(conns []*contentConn) (nodeDefs []mt.NodeDef, globalDefs globalNodeDefMap, p0Map param0Map, p0SrvMap param0SrvMap) {
 	var param0 mt.Content
 
+	globalDefs = make(globalNodeDefMap)
 	p0Map = make(param0Map)
 	p0SrvMap = param0SrvMap{
 		mt.Unknown: struct {
@@ -448,15 +450,15 @@ func muxNodeDefs(conns []*contentConn) (nodeDefs []mt.NodeDef, p0Map param0Map, 
 	for _, cc := range conns {
 		<-cc.done()
 		for _, def := range cc.nodeDefs {
-			if p0Map[cc.mediaPool] == nil {
-				p0Map[cc.mediaPool] = map[mt.Content]mt.Content{
+			if p0Map[cc.name] == nil {
+				p0Map[cc.name] = map[mt.Content]mt.Content{
 					mt.Unknown: mt.Unknown,
 					mt.Air:     mt.Air,
 					mt.Ignore:  mt.Ignore,
 				}
 			}
 
-			p0Map[cc.mediaPool][def.Param0] = param0
+			p0Map[cc.name][def.Param0] = param0
 			p0SrvMap[param0] = struct {
 				name   string
 				param0 mt.Content
@@ -467,6 +469,7 @@ func muxNodeDefs(conns []*contentConn) (nodeDefs []mt.NodeDef, p0Map param0Map, 
 
 			def.Param0 = param0
 			prepend(cc.mediaPool, &def.Name)
+			globalDefs[def.Name] = param0
 			prepend(cc.mediaPool, &def.Mesh)
 			for i := range def.Tiles {
 				prependTexture(cc.mediaPool, &def.Tiles[i].Texture)
@@ -479,7 +482,7 @@ func muxNodeDefs(conns []*contentConn) (nodeDefs []mt.NodeDef, p0Map param0Map, 
 			}
 			prependTexture(cc.mediaPool, &def.Palette)
 			for k, v := range def.ConnectTo {
-				def.ConnectTo[k] = p0Map[cc.mediaPool][v]
+				def.ConnectTo[k] = p0Map[cc.name][v]
 			}
 			prepend(cc.mediaPool, &def.FlowingAlt)
 			prepend(cc.mediaPool, &def.SrcAlt)
@@ -531,7 +534,7 @@ func muxRemotes(conns []*contentConn) []string {
 	return urls
 }
 
-func muxContent(userName string) (denyPools map[string]struct{}, itemDefs []mt.ItemDef, aliases []struct{ Alias, Orig string }, nodeDefs []mt.NodeDef, p0Map param0Map, p0SrvMap param0SrvMap, media []mediaFile, remotes []string, err error) {
+func muxContent(userName string) (denyPools map[string]struct{}, itemDefs []mt.ItemDef, aliases []struct{ Alias, Orig string }, nodeDefs []mt.NodeDef, globalDefs globalNodeDefMap, p0Map param0Map, p0SrvMap param0SrvMap, media []mediaFile, remotes []string, err error) {
 	var conns []*contentConn
 	denyPools = make(map[string]struct{})
 
@@ -567,7 +570,7 @@ PoolLoop:
 
 	failedPools := muxErrors(conns)
 	itemDefs, aliases = muxItemDefs(conns)
-	nodeDefs, p0Map, p0SrvMap = muxNodeDefs(conns)
+	nodeDefs, globalDefs, p0Map, p0SrvMap = muxNodeDefs(conns)
 	media = muxMedia(conns)
 	remotes = muxRemotes(conns)
 
@@ -581,10 +584,47 @@ PoolLoop:
 func (sc *ServerConn) globalParam0(p0 *mt.Content) {
 	clt := sc.client()
 	if clt != nil && clt.p0Map != nil {
-		if clt.p0Map[sc.mediaPool] != nil {
-			*p0 = clt.p0Map[sc.mediaPool][*p0]
+		if clt.p0Map[sc.name] != nil {
+			*p0 = clt.p0Map[sc.name][*p0]
 		}
 	}
+}
+
+func (cc *ClientConn) setServerParam0Map(serverName, mediaPool string, defs []mt.NodeDef) (mapped, missing int, missingNames []string) {
+	if cc.globalNodeDefs == nil {
+		return
+	}
+
+	if cc.p0Map == nil {
+		cc.p0Map = make(param0Map)
+	}
+
+	srvMap := map[mt.Content]mt.Content{
+		mt.Unknown: mt.Unknown,
+		mt.Air:     mt.Air,
+		mt.Ignore:  mt.Ignore,
+	}
+
+	for _, def := range defs {
+		name := def.Name
+		prepend(mediaPool, &name)
+
+		globalParam0, ok := cc.globalNodeDefs[name]
+		if !ok {
+			missing++
+			if len(missingNames) < 8 {
+				missingNames = append(missingNames, name)
+			}
+
+			continue
+		}
+
+		srvMap[def.Param0] = globalParam0
+		mapped++
+	}
+
+	cc.p0Map[serverName] = srvMap
+	return
 }
 
 func (cc *ClientConn) srvParam0(p0 *mt.Content) string {
