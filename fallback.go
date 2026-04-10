@@ -7,7 +7,15 @@ func (cc *ClientConn) fallback() bool {
 		return false
 	}
 
-	fallback := config.Servers[cc.fallbackFrom].Fallback
+	conf := Conf()
+	fallback := conf.Servers[cc.fallbackFrom].Fallback
+	if fallback == "" {
+		defaultName := conf.DefaultServerName()
+		if defaultName != "" && defaultName != cc.fallbackFrom {
+			fallback = defaultName
+		}
+	}
+
 	if fallback == "" {
 		ack, _ := cc.SendCmd(cc.whyKicked)
 
