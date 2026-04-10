@@ -448,15 +448,15 @@ func muxNodeDefs(conns []*contentConn) (nodeDefs []mt.NodeDef, p0Map param0Map, 
 	for _, cc := range conns {
 		<-cc.done()
 		for _, def := range cc.nodeDefs {
-			if p0Map[cc.name] == nil {
-				p0Map[cc.name] = map[mt.Content]mt.Content{
+			if p0Map[cc.mediaPool] == nil {
+				p0Map[cc.mediaPool] = map[mt.Content]mt.Content{
 					mt.Unknown: mt.Unknown,
 					mt.Air:     mt.Air,
 					mt.Ignore:  mt.Ignore,
 				}
 			}
 
-			p0Map[cc.name][def.Param0] = param0
+			p0Map[cc.mediaPool][def.Param0] = param0
 			p0SrvMap[param0] = struct {
 				name   string
 				param0 mt.Content
@@ -479,7 +479,7 @@ func muxNodeDefs(conns []*contentConn) (nodeDefs []mt.NodeDef, p0Map param0Map, 
 			}
 			prependTexture(cc.mediaPool, &def.Palette)
 			for k, v := range def.ConnectTo {
-				def.ConnectTo[k] = p0Map[cc.name][v]
+				def.ConnectTo[k] = p0Map[cc.mediaPool][v]
 			}
 			prepend(cc.mediaPool, &def.FlowingAlt)
 			prepend(cc.mediaPool, &def.SrcAlt)
@@ -581,8 +581,8 @@ PoolLoop:
 func (sc *ServerConn) globalParam0(p0 *mt.Content) {
 	clt := sc.client()
 	if clt != nil && clt.p0Map != nil {
-		if clt.p0Map[sc.name] != nil {
-			*p0 = clt.p0Map[sc.name][*p0]
+		if clt.p0Map[sc.mediaPool] != nil {
+			*p0 = clt.p0Map[sc.mediaPool][*p0]
 		}
 	}
 }
