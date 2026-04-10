@@ -676,6 +676,7 @@ func (sc *ServerConn) process(pkt mt.Pkt) {
 			Version:  clt.versionStr,
 			Formspec: clt.formspecVer,
 		})
+		sc.replayClientState()
 
 		sc.Log("<->", "handshake completed")
 		sc.setState(csActive)
@@ -1004,4 +1005,21 @@ func (sc *ServerConn) process(pkt mt.Pkt) {
 	}
 
 	clt.Send(pkt)
+}
+
+func (sc *ServerConn) replayClientState() {
+	clt := sc.client()
+	if clt == nil {
+		return
+	}
+
+	clt.modChsMu.RLock()
+	for ch := range clt.modChs {
+		sc.SendCmd(&mt.ToSrvJoinModChan{Channel: ch})
+	}
+	clt.modChsMu.RUnlock()
+
+	if clt.cltInfo != nil {
+		sc.SendCmd(clt.cltInfo)
+	}
 }
