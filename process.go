@@ -679,6 +679,11 @@ func (sc *ServerConn) process(pkt mt.Pkt) {
 
 		sc.Log("<->", "handshake completed")
 		sc.setState(csActive)
+		clt.mu.Lock()
+		if clt.srv == sc {
+			clt.fallbackFrom = sc.name
+		}
+		clt.mu.Unlock()
 		close(sc.initCh)
 
 		return
