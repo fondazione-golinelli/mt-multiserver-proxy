@@ -689,22 +689,52 @@ func (sc *ServerConn) process(pkt mt.Pkt) {
 
 		return
 	case *mt.ToCltMedia:
+		// For dynamic media we can't forward ToCltMedia straight through: the
+		// client only considers a download "pending" once it has received the
+		// matching ToCltMediaPush and issued its own ToSrvReqMedia. Delivering
+		// the bytes before that triggers "Received media X but no downloads
+		// pending" on the client. Instead we stash the bytes in clt.media so
+		// the client's ToSrvReqMedia (intercepted by the proxy, see sendMedia)
+		// can serve them, and drop the file from the forwarded packet.
 		tokens := make([]uint32, 0, len(cmd.Files))
-		for i, f := range cmd.Files {
+		keep := cmd.Files[:0]
+		for i := range cmd.Files {
+			origName := cmd.Files[i].Name
 			prepend(sc.mediaPool, &cmd.Files[i].Name)
+			name := cmd.Files[i].Name
 
-			dynInfo, ok := sc.dynMedia[f.Name]
+			dynInfo, ok := sc.dynMedia[name]
+			if !ok {
+				// Fallback: older code keyed dynMedia with the pre-prepend name.
+				dynInfo, ok = sc.dynMedia[origName]
+			}
 			if ok {
+				data := cmd.Files[i].Data
 				if !dynInfo.ephemeral {
-					cacheMedia(f.Data)
+					cacheMedia(data)
 				}
 
 				tokens = append(tokens, dynInfo.token)
-				delete(sc.dynMedia, f.Name)
+				delete(sc.dynMedia, name)
+				delete(sc.dynMedia, origName)
+
+				hash := sha1.Sum(data)
+				clt.media = append(clt.media, mediaFile{
+					name:       name,
+					base64SHA1: b64.EncodeToString(hash[:]),
+					data:       data,
+				})
+				continue
 			}
+			keep = append(keep, cmd.Files[i])
 		}
+		cmd.Files = keep
 
 		sc.SendCmd(&mt.ToSrvHaveMedia{Tokens: tokens})
+
+		if len(cmd.Files) == 0 {
+			return
+		}
 	case *mt.ToCltItemDefs:
 		return
 	case *mt.ToCltNodeDefs:
