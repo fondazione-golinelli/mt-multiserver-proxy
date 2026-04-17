@@ -522,6 +522,10 @@ func (cc *ClientConn) process(pkt mt.Pkt) {
 		if handleOnPlayerReceiveFields(cc, cmd) {
 			return
 		}
+	case *mt.ToSrvDeletedBlks:
+		if srv != nil {
+			srv.deleteMapBlocks(cmd.Blks)
+		}
 	case *mt.ToSrvJoinModChan:
 		modChanSubscriberMu.Lock()
 		defer modChanSubscriberMu.Unlock()
@@ -923,6 +927,8 @@ func (sc *ServerConn) process(pkt mt.Pkt) {
 			sc.globalParam0(&cmd.Particles[i].NodeParam0)
 		}
 	case *mt.ToCltBlkData:
+		sc.addMapBlock(cmd.Blkpos)
+
 		for i := range cmd.Blk.Param0 {
 			sc.globalParam0(&cmd.Blk.Param0[i])
 		}
