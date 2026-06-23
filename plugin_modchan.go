@@ -55,7 +55,9 @@ func (cc *ClientConn) JoinModChan(channel string) <-chan bool {
 		return failCh
 	}
 
-	successCh := make(chan bool)
+	// Buffer the result so packet processing cannot block if the caller times
+	// out before the upstream server replies.
+	successCh := make(chan bool, 1)
 
 	sc.modChanJoinChMu.Lock()
 	defer sc.modChanJoinChMu.Unlock()
@@ -80,7 +82,9 @@ func (cc *ClientConn) LeaveModChan(channel string) <-chan bool {
 		return failCh
 	}
 
-	successCh := make(chan bool)
+	// Buffer the result so packet processing cannot block if the caller times
+	// out before the upstream server replies.
+	successCh := make(chan bool, 1)
 
 	sc.modChanLeaveChMu.Lock()
 	defer sc.modChanLeaveChMu.Unlock()
