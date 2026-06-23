@@ -47,7 +47,7 @@ func SendModChanMsg(channel, msg string) {
 // before a response is received. If this cannot be controlled,
 // using a select statement with a timeout is recommended.
 func (cc *ClientConn) JoinModChan(channel string) <-chan bool {
-	failCh := make(chan bool)
+	failCh := make(chan bool, 1)
 	failCh <- false
 
 	sc := cc.server()
@@ -72,7 +72,7 @@ func (cc *ClientConn) JoinModChan(channel string) <-chan bool {
 // LeaveModChan attempts to unscribe from a modchannel, returning a channel
 // yielding a boolean indicating success.
 func (cc *ClientConn) LeaveModChan(channel string) <-chan bool {
-	failCh := make(chan bool)
+	failCh := make(chan bool, 1)
 	failCh <- false
 
 	sc := cc.server()
