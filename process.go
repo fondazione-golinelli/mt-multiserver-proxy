@@ -792,6 +792,7 @@ func (sc *ServerConn) process(pkt mt.Pkt) {
 		resp := &mt.ToCltAORmAdd{}
 
 		for _, ao := range cmd.Remove {
+			sc.swapAOID(&ao)
 			delete(sc.aos, ao)
 			resp.Remove = append(resp.Remove, ao)
 		}
@@ -810,8 +811,9 @@ func (sc *ServerConn) process(pkt mt.Pkt) {
 				} else {
 					var msgs []mt.IDAOMsg
 					for _, msg := range ao.InitData.Msgs {
+						sc.handleAOMsg(msg)
 						msgs = append(msgs, mt.IDAOMsg{
-							ID:  ao.ID,
+							ID:  clt.playerCAO,
 							Msg: msg,
 						})
 					}
