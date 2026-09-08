@@ -1,4 +1,4 @@
-FROM --platform=${BUILDPLATFORM} golang:1.21.4
+FROM golang:1.26.6-bookworm
 
 ARG MT_MULTISERVER_PROXY_REPO=fondazione-golinelli/mt-multiserver-proxy
 ARG VERSION
@@ -14,8 +14,13 @@ COPY . /go/src/github.com/HimbeerserverDE/mt-multiserver-proxy
 
 RUN mkdir /usr/local/mt-multiserver-proxy
 RUN git config --system url."https://github.com/${MT_MULTISERVER_PROXY_REPO}".insteadOf "https://github.com/HimbeerserverDE/mt-multiserver-proxy"
-RUN GOARCH=${TARGETARCH} go install github.com/HimbeerserverDE/mt-multiserver-proxy/cmd/...@${VERSION:-`(cd /go/src/github.com/HimbeerserverDE/mt-multiserver-proxy && TZ=UTC git --no-pager show --quiet --abbrev=12 --date='format-local:%Y%m%d%H%M%S' --format='v0.0.0-%cd-%h')`}
-RUN if [ "${TARGETARCH}" = "${BUILDARCH}" ]; then mv /go/bin/mt-* /usr/local/mt-multiserver-proxy/; else mv /go/bin/linux_${TARGETARCH}/mt-* /usr/local/mt-multiserver-proxy/; fi
+# Build the checked-out tree, including an upstream merge not yet pushed to GitHub.
+# Native target-platform builds also keep CGO enabled for SQLite and Go plugins.
+WORKDIR /go/src/github.com/HimbeerserverDE/mt-multiserver-proxy
+RUN PROXY_BUILD_VERSION="${VERSION:-$(TZ=UTC git show -s --abbrev=12 --date=format-local:%Y%m%d%H%M%S --format=v0.0.0-%cd-%h)}" && \
+    GOBIN=/usr/local/mt-multiserver-proxy go install \
+    -ldflags "-X github.com/HimbeerserverDE/mt-multiserver-proxy.buildVersion=${PROXY_BUILD_VERSION}" ./cmd/...
+WORKDIR /usr/local/mt-multiserver-proxy
 
 VOLUME ["/usr/local/mt-multiserver-proxy"]
 
