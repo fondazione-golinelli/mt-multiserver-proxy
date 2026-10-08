@@ -46,6 +46,7 @@ type ServerConn struct {
 	huds map[mt.HUDID]mt.HUDType
 
 	playerList map[string]struct{}
+	mapBlocks  map[[3]int16]struct{}
 
 	modChanJoinChs   map[string]map[chan bool]struct{}
 	modChanJoinChMu  sync.Mutex
@@ -58,6 +59,33 @@ func (sc *ServerConn) client() *ClientConn {
 	defer sc.mu.RUnlock()
 
 	return sc.clt
+}
+
+func (sc *ServerConn) addMapBlock(pos [3]int16) {
+	sc.mu.Lock()
+	defer sc.mu.Unlock()
+
+	sc.mapBlocks[pos] = struct{}{}
+}
+
+func (sc *ServerConn) deleteMapBlocks(pos [][3]int16) {
+	sc.mu.Lock()
+	defer sc.mu.Unlock()
+
+	for _, p := range pos {
+		delete(sc.mapBlocks, p)
+	}
+}
+
+func (sc *ServerConn) mapBlockSnapshot() [][3]int16 {
+	sc.mu.RLock()
+	defer sc.mu.RUnlock()
+
+	blocks := make([][3]int16, 0, len(sc.mapBlocks))
+	for p := range sc.mapBlocks {
+		blocks = append(blocks, p)
+	}
+	return blocks
 }
 
 func (sc *ServerConn) state() clientState {

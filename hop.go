@@ -1,11 +1,16 @@
 package proxy
 
 import (
+	"bytes"
+	"encoding/binary"
 	"errors"
 	"image/color"
 	"net"
+	"time"
 
 	"github.com/HimbeerserverDE/mt"
+	"github.com/HimbeerserverDE/mt/rudp"
+	"github.com/klauspost/compress/zstd"
 )
 
 var (
@@ -13,6 +18,68 @@ var (
 	ErrNoSuchServer = errors.New("inexistent server")
 	ErrNewMediaPool = errors.New("media pool unknown to client")
 )
+
+const hopMapBlockClearYieldEvery = 64
+
+var hopAirMapBlockData = mustBuildHopAirMapBlockData()
+
+func mustBuildHopAirMapBlockData() []byte {
+	raw := make([]byte, 0, 1+2+1+1+4096*2+4096+4096+1)
+	raw = append(raw, 0)
+	raw = binary.BigEndian.AppendUint16(raw, 0)
+	raw = append(raw, 2, 2)
+
+	for i := 0; i < 4096; i++ {
+		raw = binary.BigEndian.AppendUint16(raw, uint16(mt.Air))
+	}
+
+	raw = append(raw, make([]byte, 4096)...)
+	raw = append(raw, make([]byte, 4096)...)
+	raw = append(raw, 0)
+
+	var compressed bytes.Buffer
+	w, err := zstd.NewWriter(&compressed)
+	if err != nil {
+		panic(err)
+	}
+	if _, err := w.Write(raw); err != nil {
+		panic(err)
+	}
+	if err := w.Close(); err != nil {
+		panic(err)
+	}
+
+	return compressed.Bytes()
+}
+
+func (cc *ClientConn) sendHopAirMapBlock(pos [3]int16) error {
+	buf := make([]byte, 0, 2+6+len(hopAirMapBlockData)+1)
+	buf = binary.BigEndian.AppendUint16(buf, 32)
+	for _, coord := range pos {
+		buf = binary.BigEndian.AppendUint16(buf, uint16(coord))
+	}
+	buf = append(buf, hopAirMapBlockData...)
+	buf = append(buf, 0)
+
+	_, err := cc.Conn.Send(rudp.Pkt{
+		Reader:  bytes.NewReader(buf),
+		PktInfo: (&mt.ToCltBlkData{}).DefaultPktInfo(),
+	})
+	return err
+}
+
+func (cc *ClientConn) clearMapBlocks(blocks [][3]int16) {
+	for i, blockPos := range blocks {
+		if err := cc.sendHopAirMapBlock(blockPos); err != nil {
+			cc.Log("<->", "clear mapblock:", err)
+			return
+		}
+
+		if (i+1)%hopMapBlockClearYieldEvery == 0 {
+			time.Sleep(time.Millisecond)
+		}
+	}
+}
 
 // Hop connects the ClientConn to the specified upstream server
 // or the first working fallback server, saving the player's last server
@@ -63,7 +130,8 @@ func (cc *ClientConn) HopRaw(serverName string) error {
 
 	cc.Log("<->", "hop", serverName)
 
-	if cc.server() == nil {
+	oldSrv := cc.server()
+	if oldSrv == nil {
 		return ErrNoServerConn
 	}
 
@@ -82,16 +150,16 @@ func (cc *ClientConn) HopRaw(serverName string) error {
 
 	// This needs to be done before the ServerConn is closed
 	// so the clientConn isn't closed by the packet handler
-	cc.server().mu.Lock()
-	cc.server().clt = nil
-	cc.server().mu.Unlock()
+	oldSrv.mu.Lock()
+	oldSrv.clt = nil
+	oldSrv.mu.Unlock()
 
-	cc.server().Close()
+	oldSrv.Close()
 
 	// Player CAO is a good indicator for full client initialization.
 	if cc.hasPlayerCAO() {
 		// Reset the client to its initial state
-		for _, inv := range cc.server().detachedInvs {
+		for _, inv := range oldSrv.detachedInvs {
 			cc.SendCmd(&mt.ToCltDetachedInv{
 				Name: inv,
 				Keep: false,
@@ -99,22 +167,24 @@ func (cc *ClientConn) HopRaw(serverName string) error {
 		}
 
 		var aoRm []mt.AOID
-		for ao := range cc.server().aos {
+		for ao := range oldSrv.aos {
 			aoRm = append(aoRm, ao)
 		}
 		cc.SendCmd(&mt.ToCltAORmAdd{Remove: aoRm})
 
-		for spawner := range cc.server().particleSpawners {
+		for spawner := range oldSrv.particleSpawners {
 			cc.SendCmd(&mt.ToCltDelParticleSpawner{ID: spawner})
 		}
 
-		for sound := range cc.server().sounds {
+		for sound := range oldSrv.sounds {
 			cc.SendCmd(&mt.ToCltStopSound{ID: sound})
 		}
 
-		for hud := range cc.server().huds {
+		for hud := range oldSrv.huds {
 			cc.SendCmd(&mt.ToCltRmHUD{ID: hud})
 		}
+
+		cc.clearMapBlocks(oldSrv.mapBlockSnapshot())
 
 		// Static parameters
 		cc.SendCmd(&mt.ToCltBreath{Breath: 10})
@@ -189,7 +259,7 @@ func (cc *ClientConn) HopRaw(serverName string) error {
 		})
 
 		var players []string
-		for player := range cc.server().playerList {
+		for player := range oldSrv.playerList {
 			players = append(players, player)
 		}
 
