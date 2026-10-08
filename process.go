@@ -12,6 +12,10 @@ import (
 	"github.com/HimbeerserverDE/srp"
 )
 
+// invResyncWindow is how long after a client inventory action inventory
+// updates are sent without Keep diffs.
+const invResyncWindow = 2 * time.Second
+
 func (cc *ClientConn) process(pkt mt.Pkt) {
 	defer func() {
 		cltLeaveModChans(cc)
@@ -518,6 +522,10 @@ func (cc *ClientConn) process(pkt mt.Pkt) {
 		if cmd.Action == "" {
 			return
 		}
+
+		if sc := cc.server(); sc != nil {
+			sc.lastInvAction.Store(time.Now().UnixNano())
+		}
 	case *mt.ToSrvInvFields:
 		if handleOnPlayerReceiveFields(cc, cmd) {
 			return
@@ -732,8 +740,17 @@ func (sc *ServerConn) process(pkt mt.Pkt) {
 			hand.Stacks = []mt.Stack{handStack}
 		}
 
+		// Shortly after a client inventory action, send lists in full: when the
+		// server rejects the action it resends the unchanged inventory to undo
+		// the client's prediction, and a Keep diff against our own copy would
+		// leave the client showing the predicted (wrong) state.
+		keepBase := oldInv
+		if time.Since(time.Unix(0, sc.lastInvAction.Load())) < invResyncWindow {
+			keepBase = nil
+		}
+
 		b := &strings.Builder{}
-		sc.inv.SerializeKeep(b, oldInv)
+		sc.inv.SerializeKeep(b, keepBase)
 
 		clt.SendCmd(&mt.ToCltInv{Inv: b.String()})
 		return

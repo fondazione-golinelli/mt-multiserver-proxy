@@ -5,6 +5,7 @@ import (
 	"log"
 	"net"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/HimbeerserverDE/mt"
@@ -37,6 +38,10 @@ type ServerConn struct {
 
 	inv          mt.Inv
 	detachedInvs []string
+	// lastInvAction is the UnixNano time of the client's last inventory
+	// action. The client applies actions locally before the server decides,
+	// so the proxy's last-sent inventory may no longer match the client's.
+	lastInvAction atomic.Int64
 
 	aos              map[mt.AOID]struct{}
 	particleSpawners map[mt.ParticleSpawnerID]struct{}
