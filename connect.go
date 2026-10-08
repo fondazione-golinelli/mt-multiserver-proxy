@@ -49,7 +49,6 @@ func connect(conn net.Conn, name string, cc *ClientConn) *ServerConn {
 
 	cc.mu.Lock()
 	cc.srv = sc
-	cc.fallbackFrom = sc.name
 	cc.mu.Unlock()
 
 	// Mark fallback as done after a connection has persisted for some time.
