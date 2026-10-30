@@ -57,6 +57,11 @@ func TestAnnounceAddress(t *testing.T) {
 		}
 	}
 
+	status = http.StatusAccepted
+	if err := announce(listAdd); err != nil {
+		t.Errorf("announce failed on %d: %v", status, err)
+	}
+
 	status = http.StatusConflict
 	if err := announce(listUpdate); err == nil {
 		t.Error("announce succeeded on a list server error")
