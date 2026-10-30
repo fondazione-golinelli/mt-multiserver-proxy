@@ -3,6 +3,8 @@ package proxy
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
+	"io"
 	"log"
 	"math"
 	"mime/multipart"
@@ -30,10 +32,22 @@ func announce(action string) error {
 		return err
 	}
 
+	port := addr.Port
+	if Conf().List.Port != 0 {
+		port = Conf().List.Port
+	}
+
 	a := map[string]interface{}{
-		"action":  action,
-		"address": addr.IP.String(),
-		"port":    addr.Port,
+		"action": action,
+		"port":   port,
+	}
+
+	// Without an address the list server uses the IP
+	// the announcement was sent from.
+	if Conf().List.Address != "" {
+		a["address"] = Conf().List.Address
+	} else if addr.IP != nil && !addr.IP.IsUnspecified() {
+		a["address"] = addr.IP.String()
 	}
 
 	if action != listRm {
@@ -83,9 +97,15 @@ func announce(action string) error {
 	part.Write(s)
 	w.Close()
 
-	_, err = http.Post(Conf().List.Addr+"/announce", "multipart/form-data; boundary="+w.Boundary(), body)
+	resp, err := http.Post(Conf().List.Addr+"/announce", "multipart/form-data; boundary="+w.Boundary(), body)
 	if err != nil {
 		return err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		msg, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
+		return fmt.Errorf("announce %s: %s: %s", action, resp.Status, bytes.TrimSpace(msg))
 	}
 
 	log.Println("announce", action)
