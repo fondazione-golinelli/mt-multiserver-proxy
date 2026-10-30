@@ -378,7 +378,7 @@ func (cc *ClientConn) process(pkt mt.Pkt) {
 	case *mt.ToSrvInit2:
 		var remotes []string
 		var err error
-		cc.denyPools, cc.itemDefs, cc.aliases, cc.nodeDefs, cc.globalNodeDefs, cc.p0Map, cc.p0SrvMap, cc.media, remotes, err = muxContent(cc.Name())
+		cc.denyPools, cc.itemDefs, cc.aliases, cc.nodeDefs, cc.globalNodeDefs, cc.p0Map, cc.p0SrvMap, cc.media, remotes, err = muxContent(cc.Name(), cmd.Lang)
 		if err != nil {
 			cc.Log("<-", err.Error())
 			cc.Kick("Content multiplexing failed.")

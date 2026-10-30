@@ -48,6 +48,9 @@ type contentConn struct {
 	}
 
 	mediaPool string
+	// lang is the language of the client the content is fetched for.
+	// Servers only announce the translation files of that language.
+	lang string
 
 	itemDefs []mt.ItemDef
 	aliases  []struct{ Alias, Orig string }
@@ -233,7 +236,7 @@ func handleContent(cc *contentConn) {
 			cc.log("<-", "deny access", cmd)
 		case *mt.ToCltAcceptAuth:
 			cc.auth.method = 0
-			cc.SendCmd(&mt.ToSrvInit2{})
+			cc.SendCmd(&mt.ToSrvInit2{Lang: cc.lang})
 		case *mt.ToCltItemDefs:
 			for _, def := range cmd.Defs {
 				cc.itemDefs = append(cc.itemDefs, def)
@@ -534,7 +537,7 @@ func muxRemotes(conns []*contentConn) []string {
 	return urls
 }
 
-func muxContent(userName string) (denyPools map[string]struct{}, itemDefs []mt.ItemDef, aliases []struct{ Alias, Orig string }, nodeDefs []mt.NodeDef, globalDefs globalNodeDefMap, p0Map param0Map, p0SrvMap param0SrvMap, media []mediaFile, remotes []string, err error) {
+func muxContent(userName, lang string) (denyPools map[string]struct{}, itemDefs []mt.ItemDef, aliases []struct{ Alias, Orig string }, nodeDefs []mt.NodeDef, globalDefs globalNodeDefMap, p0Map param0Map, p0SrvMap param0SrvMap, media []mediaFile, remotes []string, err error) {
 	var conns []*contentConn
 	denyPools = make(map[string]struct{})
 
@@ -555,7 +558,7 @@ PoolLoop:
 			}
 
 			var cc *contentConn
-			cc, err = connectContent(conn, name, userName, srv.MediaPool)
+			cc, err = connectContent(conn, name, userName, srv.MediaPool, lang)
 			if err != nil {
 				continue
 			}

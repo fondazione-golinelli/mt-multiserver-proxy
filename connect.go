@@ -65,7 +65,7 @@ func connect(conn net.Conn, name string, cc *ClientConn) *ServerConn {
 	return sc
 }
 
-func connectContent(conn net.Conn, name, userName, mediaPool string) (*contentConn, error) {
+func connectContent(conn net.Conn, name, userName, mediaPool, lang string) (*contentConn, error) {
 	logPrefix := fmt.Sprintf("[content %s] ", name)
 	cc := &contentConn{
 		Peer:      mt.Connect(conn),
@@ -74,6 +74,7 @@ func connectContent(conn net.Conn, name, userName, mediaPool string) (*contentCo
 		name:      name,
 		userName:  userName,
 		mediaPool: mediaPool,
+		lang:      lang,
 	}
 
 	go handleContent(cc)
