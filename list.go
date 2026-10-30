@@ -103,7 +103,7 @@ func announce(action string) error {
 	}
 	defer resp.Body.Close()
 
-	if resp.StatusCode != http.StatusOK {
+	if resp.StatusCode < 200 || resp.StatusCode > 299 {
 		msg, _ := io.ReadAll(io.LimitReader(resp.Body, 1024))
 		return fmt.Errorf("announce %s: %s: %s", action, resp.Status, bytes.TrimSpace(msg))
 	}
