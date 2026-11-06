@@ -18,10 +18,17 @@ RUN mkdir /usr/local/mt-multiserver-proxy
 RUN git config --system url."https://github.com/${MT_MULTISERVER_PROXY_REPO}".insteadOf "https://github.com/HimbeerserverDE/mt-multiserver-proxy"
 # Build the checked-out tree, including an upstream merge not yet pushed to GitHub.
 # Native target-platform builds also keep CGO enabled for SQLite and Go plugins.
-WORKDIR /go/src/github.com/HimbeerserverDE/mt-multiserver-proxy
-RUN PROXY_BUILD_VERSION="${VERSION:-$(TZ=UTC git show -s --abbrev=12 --date=format-local:%Y%m%d%H%M%S --format=v0.0.0-%cd-%h)}" && \
-    GOBIN=/usr/local/mt-multiserver-proxy go install \
-    -ldflags "-X github.com/HimbeerserverDE/mt-multiserver-proxy.buildVersion=${PROXY_BUILD_VERSION}" ./cmd/...
+WORKDIR /go/build
+RUN printf '%s\n' \
+      'module skyss.local/proxy-build' \
+      'go 1.24' \
+      'require github.com/HimbeerserverDE/mt-multiserver-proxy v0.0.0' \
+      'replace github.com/HimbeerserverDE/mt-multiserver-proxy => /go/src/github.com/HimbeerserverDE/mt-multiserver-proxy' \
+      'replace github.com/HimbeerserverDE/mt => /go/src/github.com/HimbeerserverDE/mt-multiserver-proxy/third_party/mt' > go.mod && \
+    PROXY_BUILD_VERSION="${VERSION:-$(TZ=UTC git -C /go/src/github.com/HimbeerserverDE/mt-multiserver-proxy show -s --abbrev=12 --date=format-local:%Y%m%d%H%M%S --format=v0.0.0-%cd-%h)}" && \
+    GOBIN=/usr/local/mt-multiserver-proxy go install -mod=mod \
+    -ldflags "-X github.com/HimbeerserverDE/mt-multiserver-proxy.buildVersion=${PROXY_BUILD_VERSION}" \
+    github.com/HimbeerserverDE/mt-multiserver-proxy/cmd/...
 WORKDIR /usr/local/mt-multiserver-proxy
 
 VOLUME ["/usr/local/mt-multiserver-proxy"]
