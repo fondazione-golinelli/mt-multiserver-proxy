@@ -1,6 +1,7 @@
 package proxy
 
 import (
+	"encoding/json"
 	"log"
 	"os"
 	"os/exec"
@@ -12,6 +13,9 @@ import (
 var pluginsOnce sync.Once
 
 func BuildPlugin() error {
+	if sourceDir := os.Getenv("PROXY_SOURCE_DIR"); sourceDir != "" {
+		return buildPluginLocalSource(sourceDir)
+	}
 	version, err := Version()
 	if err != nil {
 		return err
@@ -34,17 +38,25 @@ func buildPlugin(version string) error {
 	if err := goCmd("mod", "tidy"); err != nil {
 		return err
 	}
-
-	if err := goCmd("build", "-buildmode=plugin"); err != nil {
-		return err
+	if version != "(devel)" {
+		output, err := exec.Command("go", "mod", "download", "-json", pathVer).Output()
+		if err != nil {
+			return err
+		}
+		var module struct{ Dir string }
+		if err := json.Unmarshal(output, &module); err != nil {
+			return err
+		}
+		if module.Dir != "" {
+			return buildPluginLocalSource(module.Dir)
+		}
 	}
-
-	return nil
+	return goCmd("build", "-buildmode=plugin")
 }
 
 func buildPluginDev(version string) error {
-	sourceDir := os.Getenv("PROXY_SOURCE_DIR")
-	if sourceDir != "" {
+	sourceDir := Path()
+	if _, err := os.Stat(sourceDir + "/go.mod"); err == nil {
 		return buildPluginLocalSource(sourceDir)
 	}
 	replace := "-replace=github.com/HimbeerserverDE/mt-multiserver-proxy=" + Path()
@@ -93,6 +105,14 @@ func buildPluginLocalSource(sourceDir string) error {
 	modFlag := "-modfile=" + modPath
 	replace := "-replace=github.com/HimbeerserverDE/mt-multiserver-proxy=" + sourceDir
 	if err := goCmd("mod", "edit", modFlag, replace, "-require=github.com/HimbeerserverDE/mt-multiserver-proxy@v0.0.0"); err != nil {
+		return err
+	}
+	if _, err := os.Stat(sourceDir + "/third_party/mt/go.mod"); err == nil {
+		mtReplace := "-replace=github.com/HimbeerserverDE/mt=" + sourceDir + "/third_party/mt"
+		if err := goCmd("mod", "edit", modFlag, mtReplace); err != nil {
+			return err
+		}
+	} else if !os.IsNotExist(err) {
 		return err
 	}
 	if err := goCmd("mod", "tidy", modFlag); err != nil {

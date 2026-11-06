@@ -10,6 +10,7 @@ ENV GONOSUMCHECK=github.com/HimbeerserverDE/mt-multiserver-proxy
 ENV GONOSUMDB=github.com/HimbeerserverDE/mt-multiserver-proxy
 ENV GOPRIVATE=github.com/HimbeerserverDE/mt-multiserver-proxy
 ENV GOFLAGS=-trimpath
+ENV PROXY_SOURCE_DIR=/go/src/github.com/HimbeerserverDE/mt-multiserver-proxy
 
 COPY . /go/src/github.com/HimbeerserverDE/mt-multiserver-proxy
 

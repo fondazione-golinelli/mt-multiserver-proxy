@@ -12,6 +12,7 @@ var (
 	ErrAuthBackendExists   = errors.New("auth backend already set")
 	ErrInvalidSRPHeader    = errors.New("encoded password is not SRP")
 	ErrLastSrvNotSupported = errors.New("auth backend does not support server information")
+	ErrUserExists          = errors.New("user already exists")
 )
 
 type User struct {

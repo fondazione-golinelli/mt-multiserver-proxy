@@ -133,10 +133,6 @@ Password changes for authenticated users continue to use `SetPasswd`.
 
 External backends without this extension retain the legacy client registration
 path; the classrooms panel refuses create-account requests on those backends.
-For the file backend, an I/O failure after reserving a name leaves the directory
-reserved. An operator must inspect/repair that entry before retrying; registration
-never automatically removes potentially concurrent data.
-
 Local development images may bundle their engine source and set
 `PROXY_SOURCE_DIR` to that directory. Versions containing `+dirty` use the
 bundled source to compile plugins rather than downloading a published engine

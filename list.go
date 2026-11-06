@@ -42,8 +42,8 @@ func announce(action string) error {
 		"port":   port,
 	}
 
-	// Without an address the list server uses the IP
-	// the announcement was sent from.
+	// Without an address the list server uses the source IP address of the
+	// announcement.
 	if Conf().List.Address != "" {
 		a["address"] = Conf().List.Address
 	} else if addr.IP != nil && !addr.IP.IsUnspecified() {
@@ -108,7 +108,6 @@ func announce(action string) error {
 		return fmt.Errorf("announce %s: %s: %s", action, resp.Status, bytes.TrimSpace(msg))
 	}
 
-	log.Println("announce", action)
 	return nil
 }
 
@@ -122,6 +121,8 @@ func init() {
 				if !added {
 					if err := announce(listAdd); err != nil {
 						log.Print(err)
+					} else {
+						log.Println("announce", listAdd)
 					}
 
 					added = true
@@ -130,6 +131,8 @@ func init() {
 
 				if err := announce(listUpdate); err != nil {
 					log.Print(err)
+				} else {
+					log.Println("announce", listUpdate)
 				}
 			}
 		}()

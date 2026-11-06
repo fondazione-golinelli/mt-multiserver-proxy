@@ -10,3 +10,12 @@ require (
 )
 
 require github.com/klauspost/compress v1.19.2
+
+// Luanti 5.18 adds static lighting fields to TOCLIENT_SET_LIGHTING.
+replace github.com/HimbeerserverDE/mt => ./third_party/mt
+
+// Luanti 5.18 adds static lighting fields to TOCLIENT_SET_LIGHTING.
+replace github.com/HimbeerserverDE/mt => ./third_party/mt
+
+// Luanti 5.18 adds static lighting fields to TOCLIENT_SET_LIGHTING.
+replace github.com/HimbeerserverDE/mt => ./third_party/mt
