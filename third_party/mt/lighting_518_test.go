@@ -30,3 +30,18 @@ func TestLighting518RoundTrip(t *testing.T) {
 		}
 	}
 }
+
+func TestLightingWithoutStaticFields(t *testing.T) {
+	var wire bytes.Buffer
+	if err := serialize(&wire, &ToCltLighting{}); err != nil {
+		t.Fatal(err)
+	}
+	legacy := wire.Bytes()[:wire.Len()-5]
+	var out ToCltLighting
+	if err := deserialize(bytes.NewReader(legacy), &out); err != nil {
+		t.Fatal(err)
+	}
+	if out.LightCurveSet || out.AmbientOcclusionGamma != 0 {
+		t.Fatalf("unexpected static fields: %+v", out)
+	}
+}

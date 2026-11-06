@@ -2314,19 +2314,19 @@ func (obj *ToCltBlkData) deserialize(r io.Reader) {
 		r.Close()
 	}
 	/*
-	   {
+		   {
 
-		p := &(*(*(struct {
-			Blkpos	[3]int16
-			//mt:zstd
-			Blk	MapBlk
-			//mt:end
-			//mt:ifser
-			Version	uint8
-		}))(obj)).Version
+			p := &(*(*(struct {
+				Blkpos	[3]int16
+				//mt:zstd
+				Blk	MapBlk
+				//mt:end
+				//mt:ifser
+				Version	uint8
+			}))(obj)).Version
 
-	   *p = read8(r)
-	   }
+		   *p = read8(r)
+		   }
 	*/
 }
 
@@ -17119,7 +17119,16 @@ func (obj *ToCltLighting) deserialize(r io.Reader) {
 			*p = math.Float32frombits(read32(r))
 		}
 	}
-	obj.LightCurveSet = read8(r) != 0
+	var lightCurveSet [1]byte
+	if _, err := io.ReadFull(r, lightCurveSet[:]); err == io.EOF {
+		return
+	} else {
+		chk(err)
+	}
+	if lightCurveSet[0] > 1 {
+		chk(fmt.Errorf("invalid bool: %d", lightCurveSet[0]))
+	}
+	obj.LightCurveSet = lightCurveSet[0] != 0
 	if obj.LightCurveSet {
 		_, err := io.ReadFull(r, obj.LightCurve[:])
 		chk(err)
@@ -41639,9 +41648,10 @@ func (obj *AOPos) serialize(w io.Writer) {
 			Vel, Acc Vec
 			Rot      [3]float32
 
-			Interpolate    bool
-			End            bool
-			UpdateInterval float32
+			Interpolate         bool
+			End                 bool
+			UpdateInterval      float32
+			InterpolateRotation bool
 		}))(obj)).Pos).serialize(w)
 	}); err != nil {
 		if err == io.EOF {
@@ -41655,9 +41665,10 @@ func (obj *AOPos) serialize(w io.Writer) {
 			Vel, Acc Vec
 			Rot      [3]float32
 
-			Interpolate    bool
-			End            bool
-			UpdateInterval float32
+			Interpolate         bool
+			End                 bool
+			UpdateInterval      float32
+			InterpolateRotation bool
 		}))(obj)).Vel).serialize(w)
 	}); err != nil {
 		if err == io.EOF {
@@ -41671,9 +41682,10 @@ func (obj *AOPos) serialize(w io.Writer) {
 			Vel, Acc Vec
 			Rot      [3]float32
 
-			Interpolate    bool
-			End            bool
-			UpdateInterval float32
+			Interpolate         bool
+			End                 bool
+			UpdateInterval      float32
+			InterpolateRotation bool
 		}))(obj)).Acc).serialize(w)
 	}); err != nil {
 		if err == io.EOF {
@@ -41686,9 +41698,10 @@ func (obj *AOPos) serialize(w io.Writer) {
 		Vel, Acc Vec
 		Rot      [3]float32
 
-		Interpolate    bool
-		End            bool
-		UpdateInterval float32
+		Interpolate         bool
+		End                 bool
+		UpdateInterval      float32
+		InterpolateRotation bool
 	}))(obj)).Rot {
 		{
 			x := ((*(*(struct {
@@ -41696,9 +41709,10 @@ func (obj *AOPos) serialize(w io.Writer) {
 				Vel, Acc Vec
 				Rot      [3]float32
 
-				Interpolate    bool
-				End            bool
-				UpdateInterval float32
+				Interpolate         bool
+				End                 bool
+				UpdateInterval      float32
+				InterpolateRotation bool
 			}))(obj)).Rot)[local359]
 			write32(w, math.Float32bits(x))
 		}
@@ -41709,9 +41723,10 @@ func (obj *AOPos) serialize(w io.Writer) {
 			Vel, Acc Vec
 			Rot      [3]float32
 
-			Interpolate    bool
-			End            bool
-			UpdateInterval float32
+			Interpolate         bool
+			End                 bool
+			UpdateInterval      float32
+			InterpolateRotation bool
 		}))(obj)).Interpolate
 		if x {
 			write8(w, 1)
@@ -41725,9 +41740,10 @@ func (obj *AOPos) serialize(w io.Writer) {
 			Vel, Acc Vec
 			Rot      [3]float32
 
-			Interpolate    bool
-			End            bool
-			UpdateInterval float32
+			Interpolate         bool
+			End                 bool
+			UpdateInterval      float32
+			InterpolateRotation bool
 		}))(obj)).End
 		if x {
 			write8(w, 1)
@@ -41741,11 +41757,17 @@ func (obj *AOPos) serialize(w io.Writer) {
 			Vel, Acc Vec
 			Rot      [3]float32
 
-			Interpolate    bool
-			End            bool
-			UpdateInterval float32
+			Interpolate         bool
+			End                 bool
+			UpdateInterval      float32
+			InterpolateRotation bool
 		}))(obj)).UpdateInterval
 		write32(w, math.Float32bits(x))
+	}
+	if obj.InterpolateRotation {
+		write8(w, 1)
+	} else {
+		write8(w, 0)
 	}
 }
 
@@ -41756,9 +41778,10 @@ func (obj *AOPos) deserialize(r io.Reader) {
 			Vel, Acc Vec
 			Rot      [3]float32
 
-			Interpolate    bool
-			End            bool
-			UpdateInterval float32
+			Interpolate         bool
+			End                 bool
+			UpdateInterval      float32
+			InterpolateRotation bool
 		}))(obj)).Pos).deserialize(r)
 	}); err != nil {
 		if err == io.EOF {
@@ -41772,9 +41795,10 @@ func (obj *AOPos) deserialize(r io.Reader) {
 			Vel, Acc Vec
 			Rot      [3]float32
 
-			Interpolate    bool
-			End            bool
-			UpdateInterval float32
+			Interpolate         bool
+			End                 bool
+			UpdateInterval      float32
+			InterpolateRotation bool
 		}))(obj)).Vel).deserialize(r)
 	}); err != nil {
 		if err == io.EOF {
@@ -41788,9 +41812,10 @@ func (obj *AOPos) deserialize(r io.Reader) {
 			Vel, Acc Vec
 			Rot      [3]float32
 
-			Interpolate    bool
-			End            bool
-			UpdateInterval float32
+			Interpolate         bool
+			End                 bool
+			UpdateInterval      float32
+			InterpolateRotation bool
 		}))(obj)).Acc).deserialize(r)
 	}); err != nil {
 		if err == io.EOF {
@@ -41803,9 +41828,10 @@ func (obj *AOPos) deserialize(r io.Reader) {
 		Vel, Acc Vec
 		Rot      [3]float32
 
-		Interpolate    bool
-		End            bool
-		UpdateInterval float32
+		Interpolate         bool
+		End                 bool
+		UpdateInterval      float32
+		InterpolateRotation bool
 	}))(obj)).Rot {
 		{
 			p := &((*(*(struct {
@@ -41813,9 +41839,10 @@ func (obj *AOPos) deserialize(r io.Reader) {
 				Vel, Acc Vec
 				Rot      [3]float32
 
-				Interpolate    bool
-				End            bool
-				UpdateInterval float32
+				Interpolate         bool
+				End                 bool
+				UpdateInterval      float32
+				InterpolateRotation bool
 			}))(obj)).Rot)[local360]
 			*p = math.Float32frombits(read32(r))
 		}
@@ -41826,9 +41853,10 @@ func (obj *AOPos) deserialize(r io.Reader) {
 			Vel, Acc Vec
 			Rot      [3]float32
 
-			Interpolate    bool
-			End            bool
-			UpdateInterval float32
+			Interpolate         bool
+			End                 bool
+			UpdateInterval      float32
+			InterpolateRotation bool
 		}))(obj)).Interpolate
 		switch n := read8(r); n {
 		case 0:
@@ -41845,9 +41873,10 @@ func (obj *AOPos) deserialize(r io.Reader) {
 			Vel, Acc Vec
 			Rot      [3]float32
 
-			Interpolate    bool
-			End            bool
-			UpdateInterval float32
+			Interpolate         bool
+			End                 bool
+			UpdateInterval      float32
+			InterpolateRotation bool
 		}))(obj)).End
 		switch n := read8(r); n {
 		case 0:
@@ -41864,11 +41893,26 @@ func (obj *AOPos) deserialize(r io.Reader) {
 			Vel, Acc Vec
 			Rot      [3]float32
 
-			Interpolate    bool
-			End            bool
-			UpdateInterval float32
+			Interpolate         bool
+			End                 bool
+			UpdateInterval      float32
+			InterpolateRotation bool
 		}))(obj)).UpdateInterval
 		*p = math.Float32frombits(read32(r))
+	}
+	obj.InterpolateRotation = true
+	var rotation [1]byte
+	if _, err := io.ReadFull(r, rotation[:]); err == io.EOF {
+		return
+	} else {
+		chk(err)
+	}
+	switch rotation[0] {
+	case 0:
+		obj.InterpolateRotation = false
+	case 1:
+	default:
+		chk(fmt.Errorf("invalid bool: %d", rotation[0]))
 	}
 }
 

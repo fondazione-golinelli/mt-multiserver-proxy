@@ -107,9 +107,10 @@ type AOPos struct {
 	Vel, Acc Vec
 	Rot      [3]float32
 
-	Interpolate    bool
-	End            bool
-	UpdateInterval float32
+	Interpolate         bool
+	End                 bool
+	UpdateInterval      float32
+	InterpolateRotation bool
 }
 
 type AOSprite struct {
